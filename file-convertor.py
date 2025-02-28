@@ -18,6 +18,7 @@ files = st.file_uploader("Upload CSV, Excel, PDF, or Image files.",
                          accept_multiple_files=True)
 
 def process_dataframe(file, ext):
+    """Processes CSV and Excel files for preview and conversion."""
     df = pd.read_csv(file) if ext == "csv" else pd.read_excel(file, engine="openpyxl")
     st.subheader(f"{file.name} - Preview")
     st.dataframe(df.head())
@@ -57,6 +58,7 @@ def process_dataframe(file, ext):
         st.download_button(label=f"Download {new_name}", data=output, file_name=new_name, mime=mime)
 
 def process_pdf(file):
+    """Extracts and displays text from PDF files."""
     st.subheader(f"{file.name} - PDF Preview")
     pdf_reader = PyPDF2.PdfReader(file)
     text = "\n".join([page.extract_text() for page in pdf_reader.pages if page.extract_text()])
@@ -66,6 +68,7 @@ def process_pdf(file):
     st.download_button(label=f"Download {file.name}", data=output, file_name=file.name, mime="application/pdf")
 
 def process_image(file, ext):
+    """Processes images for preview and conversion to PDF."""
     st.subheader(f"{file.name} - Image Preview")
     image = Image.open(file)
     st.image(image, caption=file.name, use_column_width=True)
@@ -78,20 +81,27 @@ def process_image(file, ext):
     if st.button(f"Convert {file.name} to PDF"):
         pdf = FPDF()
         pdf.add_page()
-        
+
+        # Save image temporarily
         with tempfile.NamedTemporaryFile(delete=False, suffix=f".{ext}") as temp_img:
             image.save(temp_img, format=image.format)
             temp_img_path = temp_img.name
         
         pdf.image(temp_img_path, x=10, y=10, w=190)
-        os.remove(temp_img_path)  # Delete temp file after use
         
-        pdf_output = BytesIO()
-        pdf.output(pdf_output, dest="F")
-        pdf_output.seek(0)
+        # Save PDF temporarily
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as temp_pdf:
+            pdf_path = temp_pdf.name  # Get temp file path
+            pdf.output(pdf_path)  # Save PDF file
+
+        with open(pdf_path, "rb") as pdf_file:
+            pdf_bytes = pdf_file.read()  # Read file as bytes
         
+        os.remove(temp_img_path)  # Remove temp image
+        os.remove(pdf_path)  # Remove temp PDF after reading
+
         st.download_button(label=f"Download {file.name}.pdf", 
-                           data=pdf_output, 
+                           data=pdf_bytes, 
                            file_name=file.name.replace(ext, "pdf"), 
                            mime="application/pdf")
 
